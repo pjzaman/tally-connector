@@ -1,0 +1,19 @@
+{
+  "name": "tally-firestore-connector",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Local outbound connector between TallyPrime and the APE Firebase function.",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/main.js",
+    "dry-run": "node --env-file-if-exists=.env src/dry-run.js",
+    "verify-tally": "node --env-file-if-exists=.env src/verify-tally.js",
+    "verify-exports": "node --env-file-if-exists=.env src/verify-exports.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.2.5"
+  }
+}
