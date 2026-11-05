@@ -29,7 +29,8 @@ class ApiClient {
         let parsed;
         try { parsed = text ? JSON.parse(text) : {}; } catch { parsed = { raw: text }; }
         if (response.ok) return parsed;
-        const error = new Error(`tallyApi ${method} ${path} returned HTTP ${response.status}`);
+        const reason = typeof parsed?.error === "string" ? `: ${parsed.error}` : "";
+        const error = new Error(`tallyApi ${method} ${path} returned HTTP ${response.status}${reason}`);
         error.status = response.status;
         error.response = parsed;
         if (response.status < 500 || attempt === 4) throw error;

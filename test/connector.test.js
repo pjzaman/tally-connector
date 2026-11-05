@@ -203,3 +203,24 @@ test("a query for another company or with an import is refused without touching 
   assert.match(posted[0].error, /company does not match/);
   assert.match(posted[1].error, /IMPORTDATA/);
 });
+
+test("a 429 from tallyApi is not retried and carries the server's reason", async () => {
+  const { ApiClient } = require("../src/api-client");
+  const realFetch = global.fetch;
+  let calls = 0;
+  global.fetch = async () => {
+    calls++;
+    return new Response(JSON.stringify({ error: "Daily safety limit reached: 20000 records written today (daily limit 20000)." }), { status: 429 });
+  };
+  try {
+    const api = new ApiClient({ baseUrl: "https://example.invalid/tallyApi", apiKey: "test", timeoutMs: 1000 });
+    await assert.rejects(api.cursor("company-guid"), (error) => {
+      assert.equal(error.status, 429);
+      assert.match(error.message, /HTTP 429: Daily safety limit reached/);
+      return true;
+    });
+    assert.equal(calls, 1);
+  } finally {
+    global.fetch = realFetch;
+  }
+});

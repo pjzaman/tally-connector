@@ -35,6 +35,11 @@ tally.setCompanyVerifier(() => syncWorker.verifyCompany(true));
 
 let stopping = false;
 let active = false;
+// tallyApi answers 429 once its daily safety limit is reached; it stays that way until the next
+// day (UTC+6), so wait long instead of retrying every poll.
+const limitBackoffMs = 15 * 60_000;
+let waitUntil = 0;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 process.on("SIGINT", () => { stopping = true; });
 process.on("SIGTERM", () => { stopping = true; });
 
@@ -50,7 +55,7 @@ async function run() {
   }
 
   while (!stopping) {
-    if (!active) {
+    if (!active && Date.now() >= waitUntil) {
       active = true;
       try {
         if (config.enableQueryQueue) {
@@ -68,6 +73,10 @@ async function run() {
         }
       } catch (error) {
         console.error(`Connector poll failed: ${error.message}`);
+        if (error.status === 429) {
+          waitUntil = Date.now() + limitBackoffMs;
+          console.error("APE's daily safety limit is reached; pausing for 15 minutes before trying again.");
+        }
       } finally {
         active = false;
       }
@@ -77,7 +86,11 @@ async function run() {
   console.info("Tally connector stopped.");
 }
 
-run().catch((error) => {
+run().catch(async (error) => {
   console.error(`Connector could not start: ${error.message}`);
+  if (error.status === 429) {
+    console.error("APE's daily safety limit is reached; waiting 15 minutes before exiting so the restart loop does not retry every 30 seconds.");
+    await sleep(limitBackoffMs);
+  }
   process.exitCode = 1;
 });

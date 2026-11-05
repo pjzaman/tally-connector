@@ -60,6 +60,7 @@ Each voucher's `baseVoucherType` is the built-in Tally type it belongs to (Sales
 - `baseVoucherType` is resolved from reserved names (it was "0" on every voucher).
 - Voucher reads send an explicit date period.
 - `run-connector.ps1` writes a readable UTF-8 log with timestamps, and no longer logs a false error when `.env` is absent.
+- If APE answers `429` (its daily safety limit is reached), the connector logs the reason and waits 15 minutes between attempts instead of retrying every poll.
 
 ## Tally release note
 
