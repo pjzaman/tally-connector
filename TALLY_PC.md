@@ -6,15 +6,15 @@ This file is the only set of instructions for the Tally PC. It arrives with ever
 - On the Tally PC: pull, run the steps under **Current step**, and send back the output.
 - Don't edit code on the Tally PC. If something fails, send the output instead.
 
-All commands are PowerShell, in the connector folder, as the Windows user that owns the connector key. TallyPrime must be open with every company loaded: the connector can only read Tally while it is running.
+All commands are PowerShell, as the Windows user that owns the connector key (NABILA PC). TallyPrime must be open with every company loaded: the connector can only read Tally while it is running.
 
-To find the connector folder:
+The connector folder is:
 
-```powershell
-(Get-ScheduledTask -TaskName 'Tally Firestore Connector').Actions.Arguments
+```
+C:\Users\NABILA PC\Documents\Codex\2026-10-26\tak\outputs\tally-connector
 ```
 
-It's the path before `\run-connector.ps1`.
+If that ever changes, `(Get-ScheduledTask -TaskName 'Tally Firestore Connector').Actions.Arguments` shows the current one: it's the path before `\run-connector.ps1`.
 
 ---
 
@@ -24,9 +24,12 @@ GitHub now holds exactly the code this PC runs (0.2.1, commit `44e501a`), plus t
 
 The repo must be **public** while you pull (GitHub, Settings, Change visibility). Make it private again afterwards.
 
+The folder was created by a different Windows user (CodexSandboxOnline), so git refuses to work in it ("detected dubious ownership"). The `safe.directory` line tells git to trust this one folder. It is needed once.
+
 ```powershell
 Stop-ScheduledTask -TaskName 'Tally Firestore Connector'
-cd "<connector folder>"
+cd "C:\Users\NABILA PC\Documents\Codex\2026-10-26\tak\outputs\tally-connector"
+git config --global --add safe.directory "C:/Users/NABILA PC/Documents/Codex/2026-10-26/tak/outputs/tally-connector"
 git stash push --include-untracked -m "Tally PC 0.2.1 before first pull"
 git pull
 git log --oneline -3
@@ -51,7 +54,7 @@ When told there's a new version:
 
 ```powershell
 Stop-ScheduledTask -TaskName 'Tally Firestore Connector'
-cd "<connector folder>"
+cd "C:\Users\NABILA PC\Documents\Codex\2026-10-26\tak\outputs\tally-connector"
 git pull
 npm ci
 npm test
