@@ -55,13 +55,16 @@ function paginate(items, size) {
 }
 
 class SweepWorker {
-  constructor({ api, tally, companyGuid, companyName, companyBooksFrom }) {
-    Object.assign(this, { api, tally, companyGuid, companyName, companyBooksFrom });
+  constructor({ api, tally, companyGuid, companyName, companyBooksFrom, voucherPeriodFrom = "2026-01-01" }) {
+    const minimum = "2026-01-01";
+    Object.assign(this, {
+      api, tally, companyGuid, companyName, companyBooksFrom,
+      voucherPeriodFrom: typeof voucherPeriodFrom === "string" && voucherPeriodFrom >= minimum ? voucherPeriodFrom : minimum,
+    });
     this.queue = [];
     this.queuedKeys = new Set();
     this.lastDailyDay = "";
     this.lastRecentHour = "";
-    this.warnedMissingStart = false;
   }
 
   enqueue(task, priority = false) {
@@ -77,15 +80,17 @@ class SweepWorker {
     const hour = `${today}T${now.hour}`;
     if (this.lastRecentHour !== hour) {
       const ranges = recentMonthRanges(today);
-      for (const range of ranges) this.enqueue({ kind: "voucher", ...range }, true);
+      for (const range of ranges) {
+        if (this.voucherPeriodFrom && range.toDate < this.voucherPeriodFrom) continue;
+        if (this.voucherPeriodFrom && range.fromDate < this.voucherPeriodFrom) range.fromDate = this.voucherPeriodFrom;
+        this.enqueue({ kind: "voucher", ...range }, true);
+      }
       this.lastRecentHour = hour;
     }
     if (this.lastDailyDay !== today) {
-      if (this.companyBooksFrom) {
-        for (const range of monthsBetween(this.companyBooksFrom, today)) this.enqueue({ kind: "voucher", ...range });
-      } else if (!this.warnedMissingStart) {
-        console.warn("Full-history voucher sweeps are paused because Tally did not provide BooksFrom; set COMPANY_BOOKS_FROM to the company's earliest books date.");
-        this.warnedMissingStart = true;
+      const booksFrom = [this.companyBooksFrom, this.voucherPeriodFrom].filter(Boolean).sort().at(-1);
+      if (booksFrom && booksFrom <= today) {
+        for (const range of monthsBetween(booksFrom, today)) this.enqueue({ kind: "voucher", ...range });
       }
       for (const kind of masterKinds) this.enqueue({ kind });
       this.lastDailyDay = today;
@@ -102,11 +107,12 @@ class SweepWorker {
       await this.runSweep(task);
       return task.kind;
     } catch (error) {
+      if (error.status === 429) throw error;
       task.attempts++;
       task.readyAt = Date.now() + Math.min(15 * 60_000, 30_000 * (2 ** Math.min(task.attempts, 5)));
       this.queue.push(task);
       this.queuedKeys.add(task.key);
-      console.error(`Tally ${task.kind} sweep failed; it will retry without finalizing deletion state: ${error.message}`);
+      console.error(`Tally ${task.kind} sweep failed for ${this.companyName} (${this.companyGuid}); it will retry without finalizing deletion state: ${error.message}`);
       return null;
     }
   }

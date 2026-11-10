@@ -2,7 +2,7 @@
 
 const { kinds, buildCollectionRequest, voucherPeriod } = require("./tally-collections");
 
-const companyName = process.env.COMPANY_NAME || "<configured company name>";
+const companyName = process.env.COMPANY_NAME || "<each loaded company name>";
 const reviewDate = process.env.DRY_RUN_DATE || new Date().toISOString().slice(0, 10);
 
 function shiftMonth(date, offset) {

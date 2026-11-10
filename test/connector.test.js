@@ -6,7 +6,7 @@ const assert = require("node:assert/strict");
 
 const { validateReadOnlyExport, splitUtf8 } = require("../src/read-only-query");
 const {
-  buildCollectionRequest, rowsFromXml, resolveBaseVoucherType, voucherPeriod,
+  buildCollectionRequest, rowsFromXml, companiesFromXml, resolveBaseVoucherType, voucherPeriod,
 } = require("../src/tally-collections");
 const { SyncWorker } = require("../src/sync-worker");
 const { RequestWorker } = require("../src/request-worker");
@@ -92,6 +92,13 @@ function voucherXml(alterId, type) {
 }
 const companyXml = envelope(`<COMPANY NAME="Demo Co"><GUID>company-guid</GUID><NAME>Demo Co</NAME><BOOKSFROM TYPE="Date">20190101</BOOKSFROM></COMPANY>`);
 
+test("company identity checks parse company rows without an AlterID", () => {
+  assert.deepEqual(companiesFromXml(companyXml), [{
+    guid: "company-guid",
+    summary: { name: "Demo Co", booksFrom: "20190101", startingFrom: "" },
+  }]);
+});
+
 test("voucher-type records keep RESERVEDNAME and vouchers get the right base type", () => {
   const types = rowsFromXml(voucherTypeXml, "voucherType");
   assert.deepEqual(types.map((t) => [t.summary.name, t.summary.reservedName]), [["Sales (Old)", "Sales"], ["Sales", ""]]);
@@ -113,11 +120,11 @@ test("voucher reads carry an explicit period; masters and unbounded calls do not
   assert.throws(() => buildCollectionRequest({ kind: "voucher", companyName: "Demo Co", minAlterId: 5, fromDate: "2019-01-01" }), /both fromDate and toDate/);
 });
 
-test("voucherPeriod defaults to 2000-01-01 and runs to the end of next year", () => {
+test("voucherPeriod defaults to the 2026 cutoff and runs to the end of next year", () => {
   const now = new Date("2026-11-05T00:00:00Z");
-  assert.deepEqual(voucherPeriod("2019-04-01", now), { fromDate: "2019-04-01", toDate: "2027-12-31" });
-  assert.deepEqual(voucherPeriod(null, now), { fromDate: "2000-01-01", toDate: "2027-12-31" });
-  assert.deepEqual(voucherPeriod("not a date", now), { fromDate: "2000-01-01", toDate: "2027-12-31" });
+  assert.deepEqual(voucherPeriod("2019-04-01", now), { fromDate: "2026-01-01", toDate: "2027-12-31" });
+  assert.deepEqual(voucherPeriod(null, now), { fromDate: "2026-01-01", toDate: "2027-12-31" });
+  assert.deepEqual(voucherPeriod("not a date", now), { fromDate: "2026-01-01", toDate: "2027-12-31" });
 });
 
 function fakeTally(responses) {
@@ -157,7 +164,7 @@ test("after a restart the sync still labels new sales 'Sales' and asks Tally for
   assert.equal(record.summary.baseVoucherType, "Sales");
   assert.equal(worker.cursors.voucher, 101);
   const voucherRequest = tally.sent.find((xml) => xml.includes("<ID>Codex_voucher</ID>"));
-  assert.match(voucherRequest, /1-Jan-2019<\/SVFROMDATE>/);
+  assert.match(voucherRequest, /1-Jan-2026<\/SVFROMDATE>/);
   assert.match(voucherRequest, /\$AlterID &gt; 100/);
 });
 

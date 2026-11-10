@@ -38,11 +38,24 @@ class TallyClient {
 
   async exportXml(xml, { skipCompanyVerification = false } = {}) {
     if (!skipCompanyVerification && this.companyVerifier) await this.companyVerifier();
-    const { response, body: bytes } = await requestBuffer(this.url, {
-      method: "POST",
-      headers: { "Content-Type": "text/xml; charset=utf-8", Accept: "text/xml" },
-      body: xml,
-    }, this.timeoutMs);
+    let result;
+    try {
+      result = await requestBuffer(this.url, {
+        method: "POST",
+        headers: { "Content-Type": "text/xml; charset=utf-8", Accept: "text/xml" },
+        body: xml,
+      }, this.timeoutMs);
+    } catch (cause) {
+      const timeout = cause.name === "AbortError" || cause.name === "TimeoutError";
+      const error = new Error(timeout
+        ? `Tally XML export timed out after ${this.timeoutMs} ms.`
+        : `Tally XML export could not reach ${this.url.hostname}:${this.url.port || "80"}: ${cause.cause?.message || cause.message}`);
+      error.name = cause.name || "TallyConnectionError";
+      error.source = "tally";
+      error.cause = cause;
+      throw error;
+    }
+    const { response, body: bytes } = result;
     if (!response.ok) throw new Error(`Tally returned HTTP ${response.status}`);
     const body = decodeXml(bytes, response.headers.get("content-type") || "");
     if (!body.trim()) throw new Error("Tally returned an empty response.");

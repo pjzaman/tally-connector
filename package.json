@@ -1,6 +1,6 @@
 {
   "name": "tally-firestore-connector",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "private": true,
   "description": "Local outbound connector between TallyPrime and the APE Firebase function.",
   "scripts": {

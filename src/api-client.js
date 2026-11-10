@@ -36,7 +36,14 @@ class ApiClient {
         if (response.status < 500 || attempt === 4) throw error;
         await delay(Math.min(15_000, 1_000 * (2 ** attempt)));
       } catch (error) {
-        if (error.status !== undefined || attempt === 4) throw error;
+        if (error.status !== undefined) throw error;
+        if (attempt === 4) {
+          const detail = error.cause?.message || error.message || "network error";
+          const wrapped = new Error(`tallyApi ${method} ${path} network request failed after retries: ${detail}`);
+          wrapped.source = "api";
+          wrapped.cause = error;
+          throw wrapped;
+        }
         await delay(Math.min(15_000, 1_000 * (2 ** attempt)));
       }
     }

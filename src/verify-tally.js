@@ -1,11 +1,11 @@
 "use strict";
 
 const { TallyClient } = require("./tally-client");
-const { buildCollectionRequest, rowsFromXml } = require("./tally-collections");
+const { buildCollectionRequest, companiesFromXml } = require("./tally-collections");
 
 async function main() {
   const companyName = process.env.COMPANY_NAME?.trim();
-  if (!companyName) throw new Error("Set COMPANY_NAME to the exact company name shown in Tally before running this check.");
+  const companyGuid = process.env.COMPANY_GUID?.trim();
 
   const tallyUrl = new URL(process.env.TALLY_URL || "http://127.0.0.1:9000");
   if (!new Set(["127.0.0.1", "localhost", "::1"]).has(tallyUrl.hostname)) {
@@ -15,19 +15,17 @@ async function main() {
   const tally = new TallyClient({ url: tallyUrl, timeoutMs: Math.max(1000, Number(process.env.REQUEST_TIMEOUT_MS || 30_000)) });
   const xml = buildCollectionRequest({ kind: "company", companyName: null });
   const response = await tally.exportXml(xml);
-  const companies = rowsFromXml(response, "company");
-  const match = companies.find((company) => company.summary.name === companyName);
-  if (!match) throw new Error(`Tally accepted the read-only export, but did not return the configured company name: ${companyName}.`);
-
-  const expectedGuid = process.env.COMPANY_GUID?.trim();
-  if (expectedGuid && match.guid.toLowerCase() !== expectedGuid.toLowerCase()) {
-    throw new Error(`The open Tally company GUID does not match COMPANY_GUID for ${companyName}.`);
+  const companies = companiesFromXml(response);
+  if (!companies.length) throw new Error("Tally accepted the read-only export but returned no loaded companies.");
+  for (const company of companies) {
+    console.log(`Company: ${company.summary.name}; GUID: ${company.guid}; BooksFrom: ${company.summary.booksFrom || company.summary.startingFrom || "(not returned)"}`);
   }
-
-  console.log("Tally accepted one read-only Export request.");
-  console.log(`Company: ${match.summary.name}`);
-  console.log(`GUID: ${match.guid}`);
-  console.log("No ERP API calls, sync, or sweeps were run.");
+  if (companyName || companyGuid) {
+    const match = companies.find((company) => (!companyName || company.summary.name === companyName)
+      && (!companyGuid || company.guid.toLowerCase() === companyGuid.toLowerCase()));
+    if (!match) throw new Error("The optional COMPANY_NAME/COMPANY_GUID selection did not match a loaded company.");
+  }
+  console.log("Tally accepted one read-only Company collection Export. No ERP API calls, sync, or sweeps were run.");
 }
 
 main().catch((error) => {

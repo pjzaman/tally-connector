@@ -39,7 +39,8 @@ function tallyDate(isoDate) {
 // whatever period is selected in its UI, so changes outside it are silently missed.
 // Sync reads therefore pass an explicit period (see voucherPeriod) for vouchers.
 function voucherPeriod(fromIso, now = new Date()) {
-  const from = /^\d{4}-\d{2}-\d{2}$/.test(fromIso || "") ? fromIso : "2000-01-01";
+  const minimum = "2026-01-01";
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(fromIso || "") && fromIso >= minimum ? fromIso : minimum;
   return { fromDate: from, toDate: `${now.getUTCFullYear() + 1}-12-31` };
 }
 
@@ -241,12 +242,29 @@ function rowsFromXml(xml, kind, voucherTypes = {}) {
     .filter(Boolean);
 }
 
+// Company information exports do not include AlterID, so they cannot pass through the
+// normal sync-record parser. Keep this minimal parser for local company identity checks.
+function companiesFromXml(xml) {
+  const envelope = parseTallyXml(xml);
+  return findRecords(envelope, "company")
+    .map((row) => ({
+      guid: scalar(findKey(row, ["GUID", "Guid"])),
+      summary: {
+        name: scalar(findKey(row, ["NAME", "Name", "@_NAME"])),
+        booksFrom: scalar(findKey(row, ["BOOKSFROM", "BooksFrom"])),
+        startingFrom: scalar(findKey(row, ["STARTINGFROM", "StartingFrom"])),
+      },
+    }))
+    .filter((row) => row.guid && row.summary.name);
+}
+
 module.exports = {
   kinds,
   buildCollectionRequest,
   tallyDate,
   parseTallyXml,
   rowsFromXml,
+  companiesFromXml,
   guidsFromXml,
   watermarkFromXml,
   findValue,
