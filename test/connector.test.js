@@ -145,6 +145,8 @@ test("after a restart the sync still labels new sales 'Sales' and asks Tally for
     Codex_company: companyXml,
     Codex_voucherType: voucherTypeXml,
     Codex_voucher: voucherXml(101, "Sales"),
+    // 0.2.1 reads the voucher watermark on every live poll, for its progress log line.
+    Codex_voucher_Watermark: envelope("<HIGHESTALTERID>101</HIGHESTALTERID>"),
   });
   const ingested = [];
   const allDone = Object.fromEntries(["ledger", "group", "stockItem", "stockGroup", "stockCategory", "godown", "unit", "costCentre", "currency", "voucherType", "voucher"].map((k) => [k, true]));
@@ -207,7 +209,7 @@ test("a query for another company or with an import is refused without touching 
   try { await worker.pollOnce(); } finally { console.error = quiet; }
   assert.equal(tally.sent.length, 0);
   assert.deepEqual(posted.map((p) => [p.id, p.ok, p.final]), [["q2", false, true], ["q3", false, true]]);
-  assert.match(posted[0].error, /company does not match/);
+  assert.match(posted[0].error, /company is not currently loaded in Tally or is not configured/);
   assert.match(posted[1].error, /IMPORTDATA/);
 });
 
