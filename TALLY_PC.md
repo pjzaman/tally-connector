@@ -34,7 +34,7 @@ npm test
 Start-ScheduledTask -TaskName 'Tally Firestore Connector'
 ```
 
-Expect `git log` to start with the commit that added this section, `npm test` to end with `pass 13` and `fail 0`, and `tally-firestore-connector@0.2.1` in the test header.
+Expect `git log` to start with `956390e` (or a newer commit), `npm test` to end with `pass 13` and `fail 0`, and `tally-firestore-connector@0.2.1` in the test header.
 
 ## Previous step (done 10 Nov): make this folder a clean copy of GitHub
 
