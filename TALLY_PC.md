@@ -18,7 +18,25 @@ If that ever changes, `(Get-ScheduledTask -TaskName 'Tally Firestore Connector')
 
 ---
 
-## Current step (10 Nov 2026): make this folder a clean copy of GitHub
+## Current step (10 Nov 2026, second try): switch the folder to `main`
+
+The first try stashed this PC's edits, but the folder was on a local branch (`tally-connector/2026-11-10-resume-and-sweeps`) with no link to GitHub. So `git pull` downloaded the new code without applying it, and the connector restarted on old 0.1.1, which syncs only Apon Enterprise. These commands switch to `main` and apply the already-downloaded code. No new pull is needed.
+
+```powershell
+Stop-ScheduledTask -TaskName 'Tally Firestore Connector'
+cd "C:\Users\NABILA PC\Documents\Codex\2026-10-26\tak\outputs\tally-connector"
+git checkout main
+git merge --ff-only origin/main
+git branch --set-upstream-to=origin/main main
+git log --oneline -3
+npm ci
+npm test
+Start-ScheduledTask -TaskName 'Tally Firestore Connector'
+```
+
+Expect `git log` to start with the commit that added this section, `npm test` to end with `pass 13` and `fail 0`, and `tally-firestore-connector@0.2.1` in the test header.
+
+## Previous step (done 10 Nov): make this folder a clean copy of GitHub
 
 GitHub now holds exactly the code this PC runs (0.2.1, commit `44e501a`), plus test fixes and this file. Nothing about how the connector behaves changes. This step only turns the folder's uncommitted edits into the committed version, so that later updates are a plain `git pull`.
 
